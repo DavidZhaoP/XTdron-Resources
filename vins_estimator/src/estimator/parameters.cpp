@@ -88,6 +88,10 @@ void readParameters(std::string config_file)
     FLOW_BACK = fsSettings["flow_back"];
 
     MULTIPLE_THREAD = fsSettings["multiple_thread"];
+    /*配置文件中的数据
+    //#Multiple thread support
+    // multiple_thread: 1
+    配置文件中的数据*/
 
     USE_IMU = fsSettings["imu"];
     printf("USE_IMU: %d\n", USE_IMU);
@@ -100,6 +104,14 @@ void readParameters(std::string config_file)
         GYR_N = fsSettings["gyr_n"];
         GYR_W = fsSettings["gyr_w"];
         G.z() = fsSettings["g_norm"];
+        /*配置文件中的数据
+        // #imu parameters       The more accurate parameters you provide, the better performance
+        // acc_n: 0.002          # accelerometer measurement noise standard deviation. 
+        // gyr_n: 0.0006         # gyroscope measurement noise standard deviation.     
+        // acc_w: 0.00002       # accelerometer bias random work noise standard deviation.  
+        // gyr_w: 0.000003       # gyroscope bias random work noise standard deviation.     
+        // g_norm: 9.81007     # gravity magnitude
+        配置文件中的数据*/
     }
 
     SOLVER_TIME = fsSettings["max_solver_time"];
@@ -114,6 +126,11 @@ void readParameters(std::string config_file)
     fout.close();
 
     ESTIMATE_EXTRINSIC = fsSettings["estimate_extrinsic"];
+    /*配置文件中的数据
+    // estimate_extrinsic: 0   
+    // # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
+    // # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
+    配置文件中的数据*/
     if (ESTIMATE_EXTRINSIC == 2)
     {
         ROS_WARN("have no prior about extrinsic param, calibrate extrinsic param");
@@ -129,7 +146,7 @@ void readParameters(std::string config_file)
             EX_CALIB_RESULT_PATH = OUTPUT_FOLDER + "/extrinsic_parameter.csv";
         }
         if (ESTIMATE_EXTRINSIC == 0)
-            ROS_WARN(" fix extrinsic param ");
+            ROS_WARN(" fix extrinsic param ");//当前的配置文件，启动VINS后看到这行输出
 
         cv::Mat cv_T;
         fsSettings["body_T_cam0"] >> cv_T;
@@ -140,6 +157,15 @@ void readParameters(std::string config_file)
     } 
     
     NUM_OF_CAM = fsSettings["num_of_cam"];
+
+
+    /*配置文件中的数据
+    #support: 1 imu 1 cam; 1 imu 2 cam: 2 cam; 
+    imu: 1
+    num_of_cam: 2
+    配置文件中的数据*/
+
+
     printf("camera number %d\n", NUM_OF_CAM);
 
     if(NUM_OF_CAM != 1 && NUM_OF_CAM != 2)
@@ -179,6 +205,11 @@ void readParameters(std::string config_file)
     BIAS_GYR_THRESHOLD = 0.1;
 
     TD = fsSettings["td"];
+    /*配置文件中的数据
+    #unsynchronization parameters
+    // estimate_td: 0                      # online estimate time offset between camera and imu
+    // td: 0.0                             # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
+    配置文件中的数据*/
     ESTIMATE_TD = fsSettings["estimate_td"];
     if (ESTIMATE_TD)
         ROS_INFO_STREAM("Unsynchronized sensors, online estimate time offset, initial td: " << TD);

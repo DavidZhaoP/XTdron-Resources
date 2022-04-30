@@ -62,7 +62,7 @@ cv::Mat getImageFromMsg(const sensor_msgs::ImageConstPtr &img_msg)
         img.step = img_msg->step;
         img.data = img_msg->data;
         img.encoding = "mono8";
-        ptr = cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::MONO8);
+        ptr = cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::MONO8);//转换为CvImage的函数
     }
     else
         ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);
@@ -77,7 +77,7 @@ void sync_process()
     static int count=0;
     while(1)
     {
-        if(STEREO)
+        if(STEREO)// readParameters 函数中根据相机数量进行初始化
         {
             cv::Mat image0, image1;
             std_msgs::Header header;
@@ -164,6 +164,8 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
     Vector3d acc(dx, dy, dz);
     Vector3d gyr(rx, ry, rz);
     estimator.inputIMU(t, acc, gyr);
+    // accBuf.push(make_pair(t, linearAcceleration));
+    // gyrBuf.push(make_pair(t, angularVelocity));
     return;
 }
 
@@ -258,8 +260,8 @@ int main(int argc, char **argv)
     string config_file = argv[1];
     printf("config_file: %s\n", argv[1]);
 
-    readParameters(config_file);
-    estimator.setParameter();
+    readParameters(config_file);//Parameters.h中的函数
+    estimator.setParameter();//setParameter会调用 processMeasurements
 
 #ifdef EIGEN_DONT_PARALLELIZE
     ROS_DEBUG("EIGEN_DONT_PARALLELIZE");
@@ -270,6 +272,9 @@ int main(int argc, char **argv)
     registerPub(n);
 
     ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
+    // imu_topic: "/iris_0/imu_gazebo" IMU话题
+    // 会调用estimator.inputIMU(t, acc, gyr);往accBuf gyrBuf 中写数据 
+    // accBuf.push(make_pair(t, linearAcceleration)); gyrBuf.push(make_pair(t, angularVelocity));
     ros::Subscriber sub_feature = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
     ros::Subscriber sub_img0 = n.subscribe(IMAGE0_TOPIC, 100, img0_callback);//订阅gazebo 插件发布的realsense_stereo的话题
     // imu_topic: "/iris_0/imu_gazebo"

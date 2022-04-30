@@ -103,15 +103,19 @@ void Estimator::setParameter()
     }
     f_manager.setRic(ric);
     ProjectionTwoFrameOneCamFactor::sqrt_info = FOCAL_LENGTH / 1.5 * Matrix2d::Identity();
+    //const double FOCAL_LENGTH = 460.0;
     ProjectionTwoFrameTwoCamFactor::sqrt_info = FOCAL_LENGTH / 1.5 * Matrix2d::Identity();
+    //const double FOCAL_LENGTH = 460.0;
     ProjectionOneFrameTwoCamFactor::sqrt_info = FOCAL_LENGTH / 1.5 * Matrix2d::Identity();
+    //const double FOCAL_LENGTH = 460.0;
     td = TD;
     g = G;
     cout << "set g " << g.transpose() << endl;
     featureTracker.readIntrinsicParameter(CAM_NAMES);
 
     std::cout << "MULTIPLE_THREAD is " << MULTIPLE_THREAD << '\n';
-    if (MULTIPLE_THREAD && !initThreadFlag)
+    if (MULTIPLE_THREAD && !initThreadFlag)//MULTIPLE_THREAD parameters.h中的变量
+    // initThreadFlag 构造函数中置为false
     {
         initThreadFlag = true;
         processThread = std::thread(&Estimator::processMeasurements, this);
@@ -175,7 +179,7 @@ void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1)
         pubTrackImage(imgTrack, t);
     }
     
-    if(MULTIPLE_THREAD)  
+    if(MULTIPLE_THREAD)  // parameters.h中的变量
     {     
         if(inputImageCnt % 2 == 0)
         {
@@ -207,7 +211,12 @@ void Estimator::inputIMU(double t, const Vector3d &linearAcceleration, const Vec
     if (solver_flag == NON_LINEAR)
     {
         mPropagate.lock();
-        fastPredictIMU(t, linearAcceleration, angularVelocity);
+        fastPredictIMU(t, linearAcceleration, angularVelocity);//t是时间戳toSec();
+        //fastPredictIMU 更新 latest_P = latest_P + dt * latest_V + 0.5 * dt * dt * un_acc;
+        //fastPredictIMU 更新 latest_V = latest_V + dt * un_acc;
+        //fastPredictIMU 更新 latest_acc_0 = linear_acceleration;
+        //fastPredictIMU 更新 latest_gyr_0 = angular_velocity;
+        //fastPredictIMU 更新 latest_Q = latest_Q * Utility::deltaQ(un_gyr * dt);//Eigen::Quaterniond latest_Q;
         pubLatestOdometry(latest_P, latest_Q, latest_V, t);
         mPropagate.unlock();
     }
@@ -275,7 +284,7 @@ void Estimator::processMeasurements()
         //printf("process measurments\n");
         pair<double, map<int, vector<pair<int, Eigen::Matrix<double, 7, 1> > > > > feature;
         vector<pair<double, Eigen::Vector3d>> accVector, gyrVector;
-        if(!featureBuf.empty())
+        if(!featureBuf.empty())// 主函数中的 sync_process()函数调用Estimator::inputImage 函数，它会向 featureBuf 写入数据
         {
             feature = featureBuf.front();
             curTime = feature.first + td;
@@ -1580,7 +1589,8 @@ void Estimator::fastPredictIMU(double t, Eigen::Vector3d linear_acceleration, Ei
     latest_time = t;
     Eigen::Vector3d un_acc_0 = latest_Q * (latest_acc_0 - latest_Ba) - g;
     Eigen::Vector3d un_gyr = 0.5 * (latest_gyr_0 + angular_velocity) - latest_Bg;
-    latest_Q = latest_Q * Utility::deltaQ(un_gyr * dt);
+    latest_Q = latest_Q * Utility::deltaQ(un_gyr * dt);//Eigen::Quaterniond latest_Q;
+    //Estimator::processImage会调用 updateLatestStates 更新 latest_Q
     Eigen::Vector3d un_acc_1 = latest_Q * (linear_acceleration - latest_Ba) - g;
     Eigen::Vector3d un_acc = 0.5 * (un_acc_0 + un_acc_1);
     latest_P = latest_P + dt * latest_V + 0.5 * dt * dt * un_acc;
@@ -1589,10 +1599,10 @@ void Estimator::fastPredictIMU(double t, Eigen::Vector3d linear_acceleration, Ei
     latest_gyr_0 = angular_velocity;
 }
 
-void Estimator::updateLatestStates()
+void Estimator::updateLatestStates()//Estimator::processImage会调用updateLatestStates
 {
     mPropagate.lock();
-    latest_time = Headers[frame_count] + td;
+    latest_time = Headers[frame_count] + td;//setParameter()函数中td=TD
     latest_P = Ps[frame_count];
     latest_Q = Rs[frame_count];
     latest_V = Vs[frame_count];

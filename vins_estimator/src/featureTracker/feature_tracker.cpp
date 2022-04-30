@@ -95,7 +95,7 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
 {
     // featureFrame = featureTracker.trackImage(t, _img, _img1);//t表示左图时间戳
     TicToc t_r;
-    cur_time = _cur_time;//_cur_time表示左图时间戳
+    cur_time = _cur_time;//_cur_time 表示左图时间戳
     cur_img = _img;
     row = cur_img.rows;
     col = cur_img.cols;
