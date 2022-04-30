@@ -93,8 +93,9 @@ double FeatureTracker::distance(cv::Point2f &pt1, cv::Point2f &pt2)
 
 map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackImage(double _cur_time, const cv::Mat &_img, const cv::Mat &_img1)
 {
+    // featureFrame = featureTracker.trackImage(t, _img, _img1);//t表示左图时间戳
     TicToc t_r;
-    cur_time = _cur_time;
+    cur_time = _cur_time;//_cur_time表示左图时间戳
     cur_img = _img;
     row = cur_img.rows;
     col = cur_img.cols;

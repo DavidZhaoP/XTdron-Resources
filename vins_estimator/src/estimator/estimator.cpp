@@ -166,7 +166,7 @@ void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1)
     if(_img1.empty())
         featureFrame = featureTracker.trackImage(t, _img);
     else
-        featureFrame = featureTracker.trackImage(t, _img, _img1);
+        featureFrame = featureTracker.trackImage(t, _img, _img1);//t表示左图时间戳
     //printf("featureTracker time: %f\n", featureTrackerTime.toc());
 
     if (SHOW_TRACK)

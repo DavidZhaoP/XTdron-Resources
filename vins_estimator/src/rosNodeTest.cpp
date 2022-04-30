@@ -103,12 +103,12 @@ void sync_process()
                     printf("time0=%f\n",time0);
                     count=0;
                 }
-                if(time0 < time1 - 0.003)
+                if(time0 < time1 - 0.003)     // 比较左图，右图的时间戳差与阈值3ms的大小关系，左left图落后3ms以上，丢弃
                 {
                     img0_buf.pop();
                     printf("throw img0\n");
                 }
-                else if(time0 > time1 + 0.003)
+                else if(time0 > time1 + 0.003)// 比较左图，右图的时间戳差与阈值3ms的大小关系，右right图落后3ms以上，丢弃
                 {
                     img1_buf.pop();
                     printf("throw img1\n");
