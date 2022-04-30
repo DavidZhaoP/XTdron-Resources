@@ -44,7 +44,7 @@ void registerPub(ros::NodeHandle &n)
     pub_keyframe_pose = n.advertise<nav_msgs::Odometry>("keyframe_pose", 1000);
     pub_keyframe_point = n.advertise<sensor_msgs::PointCloud>("keyframe_point", 1000);
     pub_extrinsic = n.advertise<nav_msgs::Odometry>("extrinsic", 1000);
-    pub_image_track = n.advertise<sensor_msgs::Image>("image_track", 1000);
+    pub_image_track = n.advertise<sensor_msgs::Image>("image_track", 1000);//向rviz发布上面两张带特征点的图
 
     cameraposevisual.setScale(0.1);
     cameraposevisual.setLineWidth(0.01);
@@ -74,7 +74,7 @@ void pubTrackImage(const cv::Mat &imgTrack, const double t)
     header.frame_id = "world";
     header.stamp = ros::Time(t);
     sensor_msgs::ImagePtr imgTrackMsg = cv_bridge::CvImage(header, "bgr8", imgTrack).toImageMsg();
-    pub_image_track.publish(imgTrackMsg);
+    pub_image_track.publish(imgTrackMsg);//向rviz发布上面两张带特征点的图
 }
 
 

@@ -114,11 +114,21 @@ void Estimator::setParameter()
     featureTracker.readIntrinsicParameter(CAM_NAMES);
 
     std::cout << "MULTIPLE_THREAD is " << MULTIPLE_THREAD << '\n';
-    if (MULTIPLE_THREAD && !initThreadFlag)//MULTIPLE_THREAD parameters.h中的变量
+    if (MULTIPLE_THREAD && !initThreadFlag)
+    //MULTIPLE_THREAD parameters.h中的变量
+
+    /*配置文件中的数据
+    //#Multiple thread support
+    // multiple_thread: 1
+    配置文件中的数据*/
+
     // initThreadFlag 构造函数中置为false
     {
         initThreadFlag = true;
         processThread = std::thread(&Estimator::processMeasurements, this);
+        // 当accbuff和gyrbuff中存储了足够的IMU数据时,将对IMU进行预计分;
+        // 这部分内容在函数 processMeasureMent() 中;
+        // http://www.manongjc.com/detail/16-pefcgksdpepbnmv.html
     }
     mProcess.unlock();
 }
@@ -163,7 +173,7 @@ void Estimator::changeSensorType(int use_imu, int use_stereo)
 
 void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1)
 {
-    inputImageCnt++;
+    inputImageCnt++;// Estimator::clearState()函数中被设置成0
     map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> featureFrame;
     TicToc featureTrackerTime;
 
@@ -173,13 +183,19 @@ void Estimator::inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1)
         featureFrame = featureTracker.trackImage(t, _img, _img1);//t表示左图时间戳
     //printf("featureTracker time: %f\n", featureTrackerTime.toc());
 
-    if (SHOW_TRACK)
+    if (SHOW_TRACK)// 由配置文件中的show_track配置，值为1
     {
         cv::Mat imgTrack = featureTracker.getTrackImage();
-        pubTrackImage(imgTrack, t);
+        pubTrackImage(imgTrack, t);//向rviz发布上面两张带特征点的图
     }
+
+
     
     if(MULTIPLE_THREAD)  // parameters.h中的变量
+    /*配置文件中的数据
+    //#Multiple thread support
+    // multiple_thread: 1
+    配置文件中的数据*/
     {     
         if(inputImageCnt % 2 == 0)
         {
@@ -237,29 +253,30 @@ bool Estimator::getIMUInterval(double t0, double t1, vector<pair<double, Eigen::
                                 vector<pair<double, Eigen::Vector3d>> &gyrVector)
 // getIMUInterval(prevTime, curTime, accVector, gyrVector);
 {
-    if(accBuf.empty())
+    if(accBuf.empty())//主函数的 imu_callback 回调函数会向 accBuf gyrBuf中写入gazebo中发出的 数据
     {
         printf("not receive imu\n");
         return false;
     }
     //printf("get imu from %f %f\n", t0, t1);
     //printf("imu fornt time %f   imu end time %f\n", accBuf.front().first, accBuf.back().first);
-    if(t1 <= accBuf.back().first)
-    {
-        while (accBuf.front().first <= t0)
-        {
-            accBuf.pop();
-            gyrBuf.pop();
+    if(t1 <= accBuf.back().first)//主函数的 imu_callback 回调函数会向 accBuf gyrBuf中写入gazebo中发出的 数据
+    // t1 <= accBuf.back().first表示 特征采用时间比加速度计的最新采样数据还要早？
+    {// t1表示特征的采用时间加上延迟 td ：feature.first + td;
+        while (accBuf.front().first <= t0)//主函数的 imu_callback 回调函数会向 accBuf gyrBuf中写入gazebo中发出的 数据
+        { //t0 表示 prevTime
+            accBuf.pop();//主函数的 imu_callback 回调函数会向 accBuf gyrBuf中写入gazebo中发出的 数据
+            gyrBuf.pop();//主函数的 imu_callback 回调函数会向 accBuf gyrBuf中写入gazebo中发出的 数据
         }
         while (accBuf.front().first < t1)//accBuf.front().first表示加速度计中时刻-加速度值构成的pair中的时刻？
         {
-            accVector.push_back(accBuf.front());
-            accBuf.pop();
-            gyrVector.push_back(gyrBuf.front());
-            gyrBuf.pop();
+            accVector.push_back(accBuf.front());//主函数的 imu_callback 回调函数会向 accBuf gyrBuf中写入gazebo中发出的 数据
+            accBuf.pop();//主函数的 imu_callback 回调函数会向 accBuf gyrBuf中写入gazebo中发出的 数据
+            gyrVector.push_back(gyrBuf.front());//主函数的 imu_callback 回调函数会向 accBuf gyrBuf中写入gazebo中发出的 数据
+            gyrBuf.pop();//主函数的 imu_callback 回调函数会向 accBuf gyrBuf中写入gazebo中发出的 数据
         }
-        accVector.push_back(accBuf.front());
-        gyrVector.push_back(gyrBuf.front());
+        accVector.push_back(accBuf.front());//主函数的 imu_callback 回调函数会向 accBuf gyrBuf中写入gazebo中发出的 数据
+        gyrVector.push_back(gyrBuf.front());//主函数的 imu_callback 回调函数会向 accBuf gyrBuf中写入gazebo中发出的 数据
     }
     else
     {
@@ -278,6 +295,8 @@ bool Estimator::IMUAvailable(double t)
 }
 
 void Estimator::processMeasurements()
+// 当featureBuf不为空的时候，函数开始进行前端的测量处理。
+// https://blog.csdn.net/huanghaihui_123/article/details/87974670
 {
     while (1)
     {
@@ -287,7 +306,11 @@ void Estimator::processMeasurements()
         if(!featureBuf.empty())// 主函数中的 sync_process()函数调用Estimator::inputImage 函数，它会向 featureBuf 写入数据
         {
             feature = featureBuf.front();
-            curTime = feature.first + td;
+            curTime = feature.first + td;//td:代表相机与imu之间的时间差 配置文件中= 0。
+            printf("td=%f \n");
+            // 等待imu有收集到最新图像时刻的值。
+            // 接着通过 getIMUInterval 获取preTime以及curTime这两个时间段之间IMU数据，存放到accVector以及gyrVector里面。然后对每一帧IMU之间的时间差td,然后把加速度计以及陀螺仪的数据交给processIMU()函数处理。
+            // https://blog.csdn.net/huanghaihui_123/article/details/87974670
             while(1)
             {
                 if ((!USE_IMU  || IMUAvailable(feature.first + td)))
@@ -296,7 +319,7 @@ void Estimator::processMeasurements()
                 else
                 {
                     printf("wait for imu ... \n");
-                    if (! MULTIPLE_THREAD)
+                    if (! MULTIPLE_THREAD)//parameters.h中的变量
                         return;
                     std::chrono::milliseconds dura(5);
                     std::this_thread::sleep_for(dura);
@@ -305,9 +328,9 @@ void Estimator::processMeasurements()
             mBuf.lock();//由于要操作accBuf gyrBuf，因此枷锁
             if(USE_IMU)
                 getIMUInterval(prevTime, curTime, accVector, gyrVector);
-                //将prevTime, curTime的值与， accBuf gyrBuf中的时间戳对比，按照相应条件，分别
+                //将 prevTime, curTime 的值与， accBuf gyrBuf中的时间戳对比，按照相应条件，分别
                 //向accVector, gyrVector中插入数据
-
+                // 由于IMU更新频率100Hz，相机平率30Hz，所以此处应当是按照特征的时间戳，截取与之对应的IMU数据，装入对应Vector
             featureBuf.pop();
             mBuf.unlock();//由于要操作accBuf gyrBuf，因此枷锁
 
@@ -320,7 +343,7 @@ void Estimator::processMeasurements()
                 {
                     double dt;
                     if(i == 0)
-                        dt = accVector[i].first - prevTime;//第一个时间戳
+                        dt = accVector[i].first - prevTime;//第一个时间戳，prevTime 表示上一个特征的时间戳
                     else if (i == accVector.size() - 1)
                         dt = curTime - accVector[i - 1].first;//最后一个时间戳
                     else
@@ -376,6 +399,8 @@ void Estimator::initFirstIMUPose(vector<pair<double, Eigen::Vector3d>> &accVecto
     Rs[0] = R0;
     cout << "init R0 " << endl << Rs[0] << endl;
     //Vs[0] = Vector3d(5, 0, 0);
+    // 同时，通过IMU的这些数据，来更新三个状态量，Ps,Vs,Rs（这个是绝对坐标系下的位姿）。这时候不是用预积分，
+    // 而是用正常普通的积分并且用上中值积分。 processIMU()已经完成，接着是processImage()。
 }
 
 void Estimator::initFirstPose(Eigen::Vector3d p, Eigen::Matrix3d r)
@@ -396,17 +421,22 @@ void Estimator::processIMU(double t, double dt, const Vector3d &linear_accelerat
         gyr_0 = angular_velocity;
     }
 
-    if (!pre_integrations[frame_count])
+    // 如果是新的一帧,则新建一个预积分项目
+    // http://www.manongjc.com/detail/16-pefcgksdpepbnmv.html
+    // frame_count 代表当前处理的这一帧在滑动窗口中的第几个。取值范围是在0到WINDOW_SIZE之间。
+    if (!pre_integrations[frame_count])// Estimator::processImage frame_count 自加
     {
         pre_integrations[frame_count] = new IntegrationBase{acc_0, gyr_0, Bas[frame_count], Bgs[frame_count]};
     }
     if (frame_count != 0)
     {
         pre_integrations[frame_count]->push_back(dt, linear_acceleration, angular_velocity);
+        // dt 表示 两帧IMU数据的时间间隔 
         //if(solver_flag != NON_LINEAR)
             tmp_pre_integration->push_back(dt, linear_acceleration, angular_velocity);
-
+        // dt 表示 两帧IMU数据的时间间隔 
         dt_buf[frame_count].push_back(dt);
+        // dt 表示 两帧IMU数据的时间间隔 
         linear_acceleration_buf[frame_count].push_back(linear_acceleration);
         angular_velocity_buf[frame_count].push_back(angular_velocity);
 
@@ -418,6 +448,10 @@ void Estimator::processIMU(double t, double dt, const Vector3d &linear_accelerat
         Vector3d un_acc = 0.5 * (un_acc_0 + un_acc_1);
         Ps[j] += dt * Vs[j] + 0.5 * dt * dt * un_acc;
         Vs[j] += dt * un_acc;
+        // dt 表示 两帧IMU数据的时间间隔 
+        // 同时，通过IMU的这些数据，来更新三个状态量，Ps,Vs,Rs（这个是绝对坐标系下的位姿）。
+        // 这时候不是用预积分，而是用正常普通的积分并且用上中值积分。 processIMU()已经完成，接着是processImage()。
+        // https://blog.csdn.net/huanghaihui_123/article/details/87974670
     }
     acc_0 = linear_acceleration;
     gyr_0 = angular_velocity; 

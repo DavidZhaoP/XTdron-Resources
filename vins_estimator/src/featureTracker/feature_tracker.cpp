@@ -116,6 +116,11 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
         vector<uchar> status;
         vector<float> err;
         if(hasPrediction)
+        // 主函数中调用 estimator.setParameter();将Estimator::processMeasurements()设置为线程函数，反复运行
+        // Estimator::processMeasurements() 调用 Estimator::processImage
+        // Estimator::processImage 将调用 Estimator::predictPtsInNextFrame
+        //Estimator::predictPtsInNextFrame函数将调用 FeatureTracker::setPrediction
+        //FeatureTracker::setPrediction 函数将 hasPrediction 置为 true
         {
             cur_pts = predict_pts;
             cv::calcOpticalFlowPyrLK(prev_img, cur_img, prev_pts, cur_pts, status, err, cv::Size(21, 21), 1, 

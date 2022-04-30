@@ -125,7 +125,7 @@ void sync_process()
                 }
             }
             m_buf.unlock();// img0_callback img1_callback 也用m_buf加锁
-            if(!image0.empty())
+            if(!image0.empty())//说明已经找到两张时间戳在阈值范围内的深度图
                 estimator.inputImage(time, image0, image1);
         }
         else//单目相机？
@@ -262,6 +262,12 @@ int main(int argc, char **argv)
 
     readParameters(config_file);//Parameters.h中的函数
     estimator.setParameter();//setParameter会调用 processMeasurements
+    // if(hasPrediction)
+        // 主函数中调用 estimator.setParameter();将Estimator::processMeasurements()设置为线程函数，反复运行
+        // Estimator::processMeasurements() 调用 Estimator::processImage
+        // Estimator::processImage 将调用 Estimator::predictPtsInNextFrame
+        //Estimator::predictPtsInNextFrame函数将调用 FeatureTracker::setPrediction
+        //FeatureTracker::setPrediction 函数将 hasPrediction 置为 true
 
 #ifdef EIGEN_DONT_PARALLELIZE
     ROS_DEBUG("EIGEN_DONT_PARALLELIZE");
