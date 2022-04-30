@@ -226,6 +226,7 @@ void Estimator::inputFeature(double t, const map<int, vector<pair<int, Eigen::Ma
 
 bool Estimator::getIMUInterval(double t0, double t1, vector<pair<double, Eigen::Vector3d>> &accVector, 
                                 vector<pair<double, Eigen::Vector3d>> &gyrVector)
+// getIMUInterval(prevTime, curTime, accVector, gyrVector);
 {
     if(accBuf.empty())
     {
@@ -241,7 +242,7 @@ bool Estimator::getIMUInterval(double t0, double t1, vector<pair<double, Eigen::
             accBuf.pop();
             gyrBuf.pop();
         }
-        while (accBuf.front().first < t1)
+        while (accBuf.front().first < t1)//accBuf.front().first表示加速度计中时刻-加速度值构成的pair中的时刻？
         {
             accVector.push_back(accBuf.front());
             accBuf.pop();
@@ -280,7 +281,7 @@ void Estimator::processMeasurements()
             curTime = feature.first + td;
             while(1)
             {
-                if ((!USE_IMU  || IMUAvailable(feature.first + td)))
+                if ((!USE_IMU  || IMUAvailable(feature.first + td)))//根据配置文件判断是否融合IMU，判断accBuf中是否已经有数据
                     break;
                 else
                 {
@@ -291,17 +292,20 @@ void Estimator::processMeasurements()
                     std::this_thread::sleep_for(dura);
                 }
             }
-            mBuf.lock();
+            mBuf.lock();//由于要操作accBuf gyrBuf，因此枷锁
             if(USE_IMU)
                 getIMUInterval(prevTime, curTime, accVector, gyrVector);
+                //将prevTime, curTime的值与， accBuf gyrBuf中的时间戳对比，按照相应条件，分别
+                //向accVector, gyrVector中插入数据
 
             featureBuf.pop();
-            mBuf.unlock();
+            mBuf.unlock();//由于要操作accBuf gyrBuf，因此枷锁
 
             if(USE_IMU)
             {
-                if(!initFirstPoseFlag)
-                    initFirstIMUPose(accVector);
+                if(!initFirstPoseFlag)//在 initFirstIMUPose 中被设为true
+                    initFirstIMUPose(accVector);//由accVector中的数据求均值后，对Rs[0]进行初始化
+                    //Rs的申明：Matrix3d        Rs[(WINDOW_SIZE + 1)];
                 for(size_t i = 0; i < accVector.size(); i++)
                 {
                     double dt;
