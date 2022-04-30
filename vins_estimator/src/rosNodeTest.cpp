@@ -29,7 +29,11 @@ queue<sensor_msgs::ImageConstPtr> img0_buf;
 queue<sensor_msgs::ImageConstPtr> img1_buf;
 std::mutex m_buf;
 
-
+// ros::Subscriber sub_img0 = n.subscribe(IMAGE0_TOPIC, 100, img0_callback);//订阅gazebo 插件发布的realsense_stereo的话题
+    // imu_topic: "/iris_0/imu_gazebo"
+    // image0_topic: "/iris_0/stereo_camera/left/image_raw"
+    // image1_topic: "/iris_0/stereo_camera/right/image_raw"
+// ros::Subscriber sub_img1 = n.subscribe(IMAGE1_TOPIC, 100, img1_callback);//订阅gazebo 插件发布的realsense_stereo的话题
 void img0_callback(const sensor_msgs::ImageConstPtr &img_msg)
 {
     m_buf.lock();
@@ -70,6 +74,7 @@ cv::Mat getImageFromMsg(const sensor_msgs::ImageConstPtr &img_msg)
 // extract images with same timestamp from two topics
 void sync_process()
 {
+    static int count=0;
     while(1)
     {
         if(STEREO)
@@ -77,12 +82,27 @@ void sync_process()
             cv::Mat image0, image1;
             std_msgs::Header header;
             double time = 0;
-            m_buf.lock();
+            m_buf.lock();// img0_callback img1_callback 也用m_buf加锁
             if (!img0_buf.empty() && !img1_buf.empty())
             {
-                double time0 = img0_buf.front()->header.stamp.toSec();
-                double time1 = img1_buf.front()->header.stamp.toSec();
+                double time0 = img0_buf.front()->header.stamp.toSec();//img0_callback 写入img0_buf
+                double time1 = img1_buf.front()->header.stamp.toSec();//img1_callback 写入img1_buf
+
+                // ros::Subscriber sub_img0 = n.subscribe(IMAGE0_TOPIC, 100, img0_callback);//订阅gazebo 插件发布的realsense_stereo的话题
+                // imu_topic: "/iris_0/imu_gazebo"
+                // image0_topic: "/iris_0/stereo_camera/left/image_raw"
+                // image1_topic: "/iris_0/stereo_camera/right/image_raw"
+                // ros::Subscriber sub_img1 = n.subscribe(IMAGE1_TOPIC, 100, img1_callback);//订阅gazebo 插件发布的realsense_stereo的话题
+                // img0_callback img1_callback 也用m_buf加锁
                 // 0.003s sync tolerance
+                count++;
+                // printf("count=%d\n",count);
+                if(count%10==0){
+                    printf("count=%d\n",count);
+                    printf("time1=%f\n",time1);
+                    printf("time0=%f\n",time0);
+                    count=0;
+                }
                 if(time0 < time1 - 0.003)
                 {
                     img0_buf.pop();
@@ -104,11 +124,11 @@ void sync_process()
                     //printf("find img0 and img1\n");
                 }
             }
-            m_buf.unlock();
+            m_buf.unlock();// img0_callback img1_callback 也用m_buf加锁
             if(!image0.empty())
                 estimator.inputImage(time, image0, image1);
         }
-        else
+        else//单目相机？
         {
             cv::Mat image;
             std_msgs::Header header;
@@ -251,8 +271,11 @@ int main(int argc, char **argv)
 
     ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
     ros::Subscriber sub_feature = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
-    ros::Subscriber sub_img0 = n.subscribe(IMAGE0_TOPIC, 100, img0_callback);
-    ros::Subscriber sub_img1 = n.subscribe(IMAGE1_TOPIC, 100, img1_callback);
+    ros::Subscriber sub_img0 = n.subscribe(IMAGE0_TOPIC, 100, img0_callback);//订阅gazebo 插件发布的realsense_stereo的话题
+    // imu_topic: "/iris_0/imu_gazebo"
+    // image0_topic: "/iris_0/stereo_camera/left/image_raw"
+    // image1_topic: "/iris_0/stereo_camera/right/image_raw"
+    ros::Subscriber sub_img1 = n.subscribe(IMAGE1_TOPIC, 100, img1_callback);//订阅gazebo 插件发布的realsense_stereo的话题
     ros::Subscriber sub_restart = n.subscribe("/vins_restart", 100, restart_callback);
     ros::Subscriber sub_imu_switch = n.subscribe("/vins_imu_switch", 100, imu_switch_callback);
     ros::Subscriber sub_cam_switch = n.subscribe("/vins_cam_switch", 100, cam_switch_callback);

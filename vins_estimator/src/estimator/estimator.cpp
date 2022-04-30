@@ -281,7 +281,8 @@ void Estimator::processMeasurements()
             curTime = feature.first + td;
             while(1)
             {
-                if ((!USE_IMU  || IMUAvailable(feature.first + td)))//根据配置文件判断是否融合IMU，判断accBuf中是否已经有数据
+                if ((!USE_IMU  || IMUAvailable(feature.first + td)))
+                //根据配置文件判断是否融合IMU，判断accBuf中是否已经有数据
                     break;
                 else
                 {
@@ -310,12 +311,13 @@ void Estimator::processMeasurements()
                 {
                     double dt;
                     if(i == 0)
-                        dt = accVector[i].first - prevTime;
+                        dt = accVector[i].first - prevTime;//第一个时间戳
                     else if (i == accVector.size() - 1)
-                        dt = curTime - accVector[i - 1].first;
+                        dt = curTime - accVector[i - 1].first;//最后一个时间戳
                     else
                         dt = accVector[i].first - accVector[i - 1].first;
                     processIMU(accVector[i].first, dt, accVector[i].second, gyrVector[i].second);
+                    //时间戳：accVector[i].first；数据：accVector[i].second
                 }
             }
             mProcess.lock();
