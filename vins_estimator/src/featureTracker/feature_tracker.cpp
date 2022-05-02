@@ -125,7 +125,8 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
             cur_pts = predict_pts;
             cv::calcOpticalFlowPyrLK(prev_img, cur_img, prev_pts, cur_pts, status, err, cv::Size(21, 21), 1, 
             cv::TermCriteria(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, 30, 0.01), cv::OPTFLOW_USE_INITIAL_FLOW);
-            
+            // ②调用calcOpticalFlowPyrLK()跟踪cur_pts到forw_pts,根据status,把
+            // 跟踪失败的点剔除(注意:prev, cur,forw, ids, track_cnt都要剔除),这里还加了个inBorder判断,把跟踪到图像边缘的点也剔除掉.
             int succ_num = 0;
             for (size_t i = 0; i < status.size(); i++)
             {
@@ -188,6 +189,8 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
             if (mask.type() != CV_8UC1)
                 cout << "mask type wrong " << endl;
             cv::goodFeaturesToTrack(cur_img, n_pts, MAX_CNT - cur_pts.size(), 0.01, MIN_DIST, mask);
+            // 在mask中不为0的区域,调用 goodFeaturesToTrack 提取新的角点n_pts, 通过addPoints()函数push到forw_pts中, 
+            // id初始化-1,track_cnt初始化为1.
         }
         else
             n_pts.clear();

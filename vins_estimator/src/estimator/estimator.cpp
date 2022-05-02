@@ -328,6 +328,7 @@ void Estimator::processMeasurements()
             mBuf.lock();//由于要操作accBuf gyrBuf，因此枷锁
             if(USE_IMU)
                 getIMUInterval(prevTime, curTime, accVector, gyrVector);
+                // curTime 当前特征（应该是 featureBuf 中最旧的一个特征）的时间戳；prevTime 上一个特征的时间戳
                 //将 prevTime, curTime 的值与， accBuf gyrBuf中的时间戳对比，按照相应条件，分别
                 //向accVector, gyrVector中插入数据
                 // 由于IMU更新频率100Hz，相机平率30Hz，所以此处应当是按照特征的时间戳，截取与之对应的IMU数据，装入对应Vector
@@ -336,25 +337,33 @@ void Estimator::processMeasurements()
 
             if(USE_IMU)
             {
-                if(!initFirstPoseFlag)//在 initFirstIMUPose 中被设为true
+                if(!initFirstPoseFlag)// initFirstPoseFlag 在 initFirstIMUPose 中被设为true
                     initFirstIMUPose(accVector);//由accVector中的数据求均值后，对Rs[0]进行初始化
                     //Rs的申明：Matrix3d        Rs[(WINDOW_SIZE + 1)];
                 for(size_t i = 0; i < accVector.size(); i++)
                 {
                     double dt;
                     if(i == 0)
-                        dt = accVector[i].first - prevTime;//第一个时间戳，prevTime 表示上一个特征的时间戳
+                        dt = accVector[i].first - prevTime;//第一个时间戳，prevTime 表示上一个特征的时间戳, prevTime 最初为-1
                     else if (i == accVector.size() - 1)
                         dt = curTime - accVector[i - 1].first;//最后一个时间戳
+                        // curTime 当前特征（应该是 featureBuf 中最旧的一个特征）的时间戳；prevTime 上一个特征的时间戳
                     else
                         dt = accVector[i].first - accVector[i - 1].first;
                     processIMU(accVector[i].first, dt, accVector[i].second, gyrVector[i].second);
-                    //时间戳：accVector[i].first；数据：accVector[i].second
+                    // processIMU 通过IMU的这些数据，来更新三个状态量，Ps,Vs,Rs（这个是绝对坐标系下的位姿）。
+                    //时间戳： accVector[i].first；数据： accVector[i].second
+                    // dt 表示 两帧IMU数据的时间间隔 
+                    // processIMU 会调用 pre_integrations[frame_count]->push_back(dt, linear_acceleration, angular_velocity);
+                    // 执行关键操作 propagate 
                 }
             }
             mProcess.lock();
             processImage(feature.second, feature.first);
-            prevTime = curTime;
+            // map<int,Matrix<double,7,1>> 代表：<特征点id,<x,y,z,u,v,velocity_u,velocity_v>>
+            // https://blog.csdn.net/huanghaihui_123/article/details/87974670
+            // feature.second 特征  feature.first 时间戳
+            prevTime = curTime; 
 
             printStatistics(*this, 0);
 
@@ -427,10 +436,14 @@ void Estimator::processIMU(double t, double dt, const Vector3d &linear_accelerat
     if (!pre_integrations[frame_count])// Estimator::processImage frame_count 自加
     {
         pre_integrations[frame_count] = new IntegrationBase{acc_0, gyr_0, Bas[frame_count], Bgs[frame_count]};
+        // Bas  Bgs 大小为 WINDOW_SIZE+1 在构造函数中均被初始化为0
     }
     if (frame_count != 0)
     {
+        // printf("frame_count=%d\n",frame_count);// 程序运行后 frame_count=10
         pre_integrations[frame_count]->push_back(dt, linear_acceleration, angular_velocity);
+        // 执行关键操作 propagate 
+        // pre_integrations的 dt_buf  acc_buf gyr_buf 中分别插入对应数据
         // dt 表示 两帧IMU数据的时间间隔 
         //if(solver_flag != NON_LINEAR)
             tmp_pre_integration->push_back(dt, linear_acceleration, angular_velocity);
